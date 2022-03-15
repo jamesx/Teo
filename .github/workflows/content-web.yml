@@ -24,6 +24,7 @@ env:
  containerRegistryName: 'fabmedicalxp'
  containerRegistry: 'fabmedicalxp.azurecr.io'
  dockerfilePath: './content-web'
+ clusterName: 'fabmedical-xp'
  tag: '${{ github.run_id  }}'
 
 # Jobs define the actions that take place when code is pushed to the master branch
@@ -63,4 +64,24 @@ jobs:
         cluster-name: '${{ env.clusterName }}'
         resource-group: '${{ env.resourceGroupName }}'
 
+    - name: Create ACR credentials secret
+      uses: azure/k8s-create-secret@v1
+      with:
+        container-registry-url: ${{ env.containerRegistry }}.azurecr.io
+        container-registry-username: ${{ secrets.ACR_USERNAME }}
+        container-registry-password: ${{ secrets.ACR_PASSWORD }}
+        secret-name: ingress-demo-secret
+        namespace: ingress-demo
+        arguments: --force true
         
+     - name: Deploy to AKS
+       uses: azure/k8s-deploy@v1
+       with:
+         manifests: |
+           web.deployment.yml
+           web.service.yml
+         images: |
+           ${{ env.containerRegistry }}.azurecr.io/${{ env.imageRepository }}:${{ env.tag }}
+         imagepullsecrets: |
+           ingress-demo-secret
+         namespace: ingress-demo        
